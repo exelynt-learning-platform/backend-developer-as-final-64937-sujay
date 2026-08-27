@@ -8,7 +8,6 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -126,7 +125,6 @@ public class ReservationController {
         return ResponseEntity.noContent().build();
     }
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ReservationResponseDTO> updateReservationStatus(
             @PathVariable Long id,
             @Valid @RequestBody ReservationStatusUpdateDTO request) {
