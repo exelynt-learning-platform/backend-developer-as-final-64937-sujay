@@ -10,6 +10,7 @@ import com.exelynt.booking.user.repository.UserRepository;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -40,16 +41,24 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                         )
                 );
 
-        String username = authentication.getName();
+        if (!(authentication.getPrincipal()
+                instanceof UserDetails userDetails)) {
+
+            throw new IllegalStateException(
+                    "Authenticated principal is not a UserDetails instance"
+            );
+        }
+
+        String username = userDetails.getUsername();
 
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() ->
-                        new UserNotFoundException("User not found"));
+                        new UserNotFoundException(
+                                "User not found"
+                        ));
 
-        String token = jwtService.generateToken(
-                (org.springframework.security.core.userdetails.UserDetails)
-                        authentication.getPrincipal()
-        );
+        String token =
+                jwtService.generateToken(userDetails);
 
         return new LoginResponseDTO(
                 token,

@@ -15,7 +15,6 @@ import com.exelynt.booking.resource.repository.ResourceRepository;
 import com.exelynt.booking.user.entity.User;
 import com.exelynt.booking.user.exception.UserNotFoundException;
 import com.exelynt.booking.user.repository.UserRepository;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -26,9 +25,19 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Service
 public class ReservationServiceImpl implements ReservationService {
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "id",
+            "startTime",
+            "endTime",
+            "price",
+            "createdAt",
+            "updatedAt"
+    );
 
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
@@ -68,16 +77,13 @@ public class ReservationServiceImpl implements ReservationService {
                 request.getEndTime());
 
         if (!Boolean.TRUE.equals(resource.getAvailable())) {
-
             throw new BusinessException(
                     "Resource is not available");
         }
 
         Reservation reservation = new Reservation();
 
-        // User is taken from JWT username.
         reservation.setUser(user);
-
         reservation.setResource(resource);
         reservation.setStartTime(request.getStartTime());
         reservation.setEndTime(request.getEndTime());
@@ -134,14 +140,12 @@ public class ReservationServiceImpl implements ReservationService {
             BigDecimal maxPrice) {
 
         Specification<Reservation> specification =
-                (root, query, criteriaBuilder) ->
-                        criteriaBuilder.conjunction();
+                (Specification<Reservation>) null;
 
         if (!admin) {
-
-            specification =
-                    ReservationSpecification.hasUsername(
-                            username);
+            specification = specification.and(
+                    ReservationSpecification.hasUsername(username)
+            );
         }
 
         if (status != null && !status.isBlank()) {
@@ -149,28 +153,24 @@ public class ReservationServiceImpl implements ReservationService {
             ReservationStatus reservationStatus =
                     parseReservationStatus(status);
 
-            specification =
-                    specification.and(
-                            ReservationSpecification.hasStatus(
-                                    reservationStatus));
+            specification = specification.and(
+                    ReservationSpecification.hasStatus(
+                            reservationStatus)
+            );
         }
 
         if (minPrice != null) {
-
-            specification =
-                    specification.and(
-                            ReservationSpecification
-                                    .priceGreaterThanOrEqualTo(
-                                            minPrice));
+            specification = specification.and(
+                    ReservationSpecification
+                            .priceGreaterThanOrEqualTo(minPrice)
+            );
         }
 
         if (maxPrice != null) {
-
-            specification =
-                    specification.and(
-                            ReservationSpecification
-                                    .priceLessThanOrEqualTo(
-                                            maxPrice));
+            specification = specification.and(
+                    ReservationSpecification
+                            .priceLessThanOrEqualTo(maxPrice)
+            );
         }
 
         return specification;
@@ -180,7 +180,6 @@ public class ReservationServiceImpl implements ReservationService {
             String status) {
 
         try {
-
             return ReservationStatus.valueOf(
                     status.toUpperCase());
 
@@ -354,16 +353,10 @@ public class ReservationServiceImpl implements ReservationService {
             String sortDirection) {
 
         if (sortBy == null || sortBy.isBlank()) {
-
             return Sort.by("createdAt").descending();
         }
 
-        if (!sortBy.equals("id")
-                && !sortBy.equals("startTime")
-                && !sortBy.equals("endTime")
-                && !sortBy.equals("price")
-                && !sortBy.equals("createdAt")
-                && !sortBy.equals("updatedAt")) {
+        if (!ALLOWED_SORT_FIELDS.contains(sortBy)) {
 
             throw new IllegalArgumentException(
                     "Invalid sort field: " + sortBy);

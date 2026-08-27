@@ -17,11 +17,29 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
+    private static final int MIN_SECRET_LENGTH = 32;
+
     @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration}")
     private long jwtExpiration;
+
+    @jakarta.annotation.PostConstruct
+    private void validateSecret() {
+
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT_SECRET environment variable must be configured"
+            );
+        }
+
+        if (secret.length() < MIN_SECRET_LENGTH) {
+            throw new IllegalStateException(
+                    "JWT secret must be at least 32 characters long"
+            );
+        }
+    }
 
     public String generateToken(UserDetails userDetails) {
 
@@ -32,7 +50,10 @@ public class JwtService {
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date())
                 .expiration(
-                        new Date(System.currentTimeMillis() + jwtExpiration)
+                        new Date(
+                                System.currentTimeMillis()
+                                        + jwtExpiration
+                        )
                 )
                 .signWith(getSigningKey())
                 .compact();

@@ -78,9 +78,6 @@ class AuthenticationServiceTest {
                         UsernamePasswordAuthenticationToken.class)
         )).thenReturn(authentication);
 
-        when(authentication.getName())
-                .thenReturn("user");
-
         when(authentication.getPrincipal())
                 .thenReturn(userDetails);
 
