@@ -52,10 +52,7 @@ public class ReservationController {
 
         String username = authentication.getName();
 
-        boolean admin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN"));
+        boolean admin = isAdmin(authentication);
 
         Page<ReservationResponseDTO> reservations =
                 reservationService.getReservations(
@@ -80,10 +77,7 @@ public class ReservationController {
 
         String username = authentication.getName();
 
-        boolean admin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN"));
+        boolean admin = isAdmin(authentication);
 
         return ResponseEntity.ok(
                 reservationService.getReservationById(
@@ -102,10 +96,7 @@ public class ReservationController {
 
         String username = authentication.getName();
 
-        boolean admin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN"));
+        boolean admin = isAdmin(authentication);
 
         return ResponseEntity.ok(
                 reservationService.updateReservation(
@@ -124,10 +115,7 @@ public class ReservationController {
 
         String username = authentication.getName();
 
-        boolean admin = authentication.getAuthorities()
-                .stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN"));
+        boolean admin = isAdmin(authentication);
 
         reservationService.deleteReservation(
                 id,
@@ -149,5 +137,12 @@ public class ReservationController {
                         request.getStatus()
                 )
         );
+    }
+    private boolean isAdmin(Authentication authentication) {
+
+        return authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN"));
     }
 }

@@ -113,9 +113,9 @@ public class ReservationServiceImpl implements ReservationService {
 
         Pageable pageable =
                 PageRequest.of(page, size, sort);
-
-        Specification<Reservation> specification = null;
-
+        Specification<Reservation> specification =
+                (root, query, criteriaBuilder) ->
+                        criteriaBuilder.conjunction();
 
         if (!admin) {
             specification =
@@ -299,18 +299,6 @@ public class ReservationServiceImpl implements ReservationService {
             throw new IllegalArgumentException(
                     "Start time must be before end time");
         }
-
-        if (!startTime.isAfter(LocalDateTime.now())) {
-
-            throw new IllegalArgumentException(
-                    "Start time must be in the future");
-        }
-
-        if (!endTime.isAfter(LocalDateTime.now())) {
-
-            throw new IllegalArgumentException(
-                    "End time must be in the future");
-        }
     }
 
     private void validatePagination(
@@ -337,6 +325,17 @@ public class ReservationServiceImpl implements ReservationService {
         if (sortBy == null || sortBy.isBlank()) {
 
             return Sort.by("createdAt").descending();
+        }
+
+        if (!sortBy.equals("id")
+                && !sortBy.equals("startTime")
+                && !sortBy.equals("endTime")
+                && !sortBy.equals("price")
+                && !sortBy.equals("createdAt")
+                && !sortBy.equals("updatedAt")) {
+
+            throw new IllegalArgumentException(
+                    "Invalid sort field: " + sortBy);
         }
 
         Sort.Direction direction =

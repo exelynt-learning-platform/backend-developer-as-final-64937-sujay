@@ -44,7 +44,7 @@ public class GlobalExceptionHandler {
 
     // 400 - Bean validation errors
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationException(
+    public ResponseEntity<ValidationErrorResponse> handleValidationException(
             MethodArgumentNotValidException exception) {
 
         Map<String, String> fieldErrors = new HashMap<>();
@@ -58,32 +58,14 @@ public class GlobalExceptionHandler {
                         )
                 );
 
-        Map<String, Object> response = new HashMap<>();
-
-        response.put(
-                "timestamp",
-                LocalDateTime.now()
-        );
-
-        response.put(
-                "status",
-                HttpStatus.BAD_REQUEST.value()
-        );
-
-        response.put(
-                "error",
-                HttpStatus.BAD_REQUEST.getReasonPhrase()
-        );
-
-        response.put(
-                "message",
-                "Validation failed"
-        );
-
-        response.put(
-                "errors",
-                fieldErrors
-        );
+        ValidationErrorResponse response =
+                new ValidationErrorResponse(
+                        LocalDateTime.now(),
+                        HttpStatus.BAD_REQUEST.value(),
+                        HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                        "Validation failed",
+                        fieldErrors
+                );
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)

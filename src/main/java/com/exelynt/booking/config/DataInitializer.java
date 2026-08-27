@@ -18,46 +18,55 @@ public class DataInitializer {
 
         return args -> {
 
-            if (!userRepository.existsByUsername("admin")) {
+            createUserIfNotExists(
+                    userRepository,
+                    passwordEncoder,
+                    "admin",
+                    "admin@exelynt.com",
+                    "Admin@123",
+                    Role.ADMIN
+            );
 
-                User admin = new User();
+            createUserIfNotExists(
+                    userRepository,
+                    passwordEncoder,
+                    "user",
+                    "user@exelynt.com",
+                    "User@123",
+                    Role.USER
+            );
 
-                admin.setUsername("admin");
-                admin.setEmail("admin@exelynt.com");
-                admin.setPassword(
-                        passwordEncoder.encode("Admin@123")
-                );
-                admin.setRole(Role.ADMIN);
-
-                userRepository.save(admin);
-            }
-
-            if (!userRepository.existsByUsername("user")) {
-
-                User user = new User();
-
-                user.setUsername("user");
-                user.setEmail("user@exelynt.com");
-                user.setPassword(
-                        passwordEncoder.encode("User@123")
-                );
-                user.setRole(Role.USER);
-
-                userRepository.save(user);
-            }
-            if (!userRepository.existsByUsername("user2")) {
-
-                User user2 = new User();
-
-                user2.setUsername("user2");
-                user2.setEmail("user2@exelynt.com");
-                user2.setPassword(
-                        passwordEncoder.encode("User2@123")
-                );
-                user2.setRole(Role.USER);
-
-                userRepository.save(user2);
-            }
+            createUserIfNotExists(
+                    userRepository,
+                    passwordEncoder,
+                    "user2",
+                    "user2@exelynt.com",
+                    "User2@123",
+                    Role.USER
+            );
         };
+    }
+
+    private void createUserIfNotExists(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            String username,
+            String email,
+            String password,
+            Role role) {
+
+        if (!userRepository.existsByUsername(username)) {
+
+            User user = new User();
+
+            user.setUsername(username);
+            user.setEmail(email);
+            user.setPassword(
+                    passwordEncoder.encode(password)
+            );
+            user.setRole(role);
+
+            userRepository.save(user);
+        }
     }
 }
