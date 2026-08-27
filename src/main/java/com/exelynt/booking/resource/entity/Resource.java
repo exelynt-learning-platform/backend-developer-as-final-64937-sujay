@@ -24,7 +24,7 @@ public class Resource {
     private String name;
     private String description;
     @Column(nullable = false)
-    private boolean available;
+    private Boolean available;
     @Column(nullable = false)
     private String type;
     @Column(nullable = false, precision = 10, scale = 2)

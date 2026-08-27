@@ -65,7 +65,7 @@ public class ReservationServiceImpl implements ReservationService {
                 request.getEndTime()
         );
 
-        if (!resource.isAvailable()) {
+        if (!Boolean.TRUE.equals(resource.getAvailable())) {
             throw new BusinessException(
                     "Resource is not available");
         }
@@ -219,6 +219,11 @@ public class ReservationServiceImpl implements ReservationService {
                 admin
         );
 
+        if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+            throw new BusinessException(
+                    "Cancelled reservation cannot be updated");
+        }
+
         Resource resource =
                 resourceRepository.findById(
                                 request.getResourceId())
@@ -232,7 +237,7 @@ public class ReservationServiceImpl implements ReservationService {
                 request.getEndTime()
         );
 
-        if (!resource.isAvailable()) {
+        if (!Boolean.TRUE.equals(resource.getAvailable())) {
             throw new BusinessException(
                     "Resource is not available");
         }

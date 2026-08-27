@@ -91,7 +91,7 @@ public class ResourceServiceImpl implements ResourceService {
         response.setDescription(resource.getDescription());
         response.setType(resource.getType());
         response.setPrice(resource.getPrice());
-        response.setAvailable(resource.isAvailable());
+        response.setAvailable(resource.getAvailable());
         response.setCreatedAt(resource.getCreatedAt());
         response.setUpdatedAt(resource.getUpdatedAt());
 
