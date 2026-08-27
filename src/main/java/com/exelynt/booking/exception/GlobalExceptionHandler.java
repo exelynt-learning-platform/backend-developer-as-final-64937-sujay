@@ -3,6 +3,8 @@ package com.exelynt.booking.exception;
 import com.exelynt.booking.reservation.exception.ReservationNotFoundException;
 import com.exelynt.booking.resource.exception.ResourceNotFoundException;
 import com.exelynt.booking.user.exception.UserNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,7 +21,9 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 404 - Resource / Reservation / User not found
+    private static final Logger logger =
+            LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler({
             ResourceNotFoundException.class,
             ReservationNotFoundException.class,
@@ -42,7 +46,6 @@ public class GlobalExceptionHandler {
                 .body(errorResponse);
     }
 
-    // 400 - Bean validation errors
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ValidationErrorResponse> handleValidationException(
             MethodArgumentNotValidException exception) {
@@ -72,7 +75,6 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
-    // 400 - Invalid arguments / invalid state
     @ExceptionHandler({
             IllegalArgumentException.class,
             IllegalStateException.class,
@@ -95,11 +97,16 @@ public class GlobalExceptionHandler {
                 .body(errorResponse);
     }
 
-    // 403 - Authenticated but not authorized
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(
             AccessDeniedException exception,
             ServletWebRequest request) {
+
+        logger.warn(
+                "Access denied: uri={}, message={}",
+                request.getRequest().getRequestURI(),
+                exception.getMessage()
+        );
 
         ErrorResponse errorResponse = new ErrorResponse(
                 LocalDateTime.now(),
@@ -114,7 +121,6 @@ public class GlobalExceptionHandler {
                 .body(errorResponse);
     }
 
-    // 400 - Invalid JSON / invalid enum
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleMessageNotReadableException(
             HttpMessageNotReadableException exception,
@@ -133,11 +139,17 @@ public class GlobalExceptionHandler {
                 .body(errorResponse);
     }
 
-    // 500 - Unexpected errors only
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneralException(
             Exception exception,
             ServletWebRequest request) {
+
+        logger.error(
+                "Unexpected error: method={}, uri={}",
+                request.getRequest().getMethod(),
+                request.getRequest().getRequestURI(),
+                exception
+        );
 
         ErrorResponse errorResponse = new ErrorResponse(
                 LocalDateTime.now(),

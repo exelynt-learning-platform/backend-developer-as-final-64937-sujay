@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,7 +32,10 @@ public class ReservationController {
         String username = authentication.getName();
 
         ReservationResponseDTO response =
-                reservationService.createReservation(request, username);
+                reservationService.createReservation(
+                        request,
+                        username
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -124,7 +128,9 @@ public class ReservationController {
 
         return ResponseEntity.noContent().build();
     }
+
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ReservationResponseDTO> updateReservationStatus(
             @PathVariable Long id,
             @Valid @RequestBody ReservationStatusUpdateDTO request) {
@@ -136,6 +142,7 @@ public class ReservationController {
                 )
         );
     }
+
     private boolean isAdmin(Authentication authentication) {
 
         return authentication.getAuthorities()

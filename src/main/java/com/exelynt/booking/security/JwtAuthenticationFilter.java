@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +17,9 @@ import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
@@ -34,7 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
-        final String authHeader =
+        String authHeader =
                 request.getHeader("Authorization");
 
         if (authHeader == null
@@ -44,43 +49,91 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        final String jwt = authHeader.substring(7);
-
-        final String username;
+        String jwt = authHeader.substring(7);
 
         try {
-            username = jwtService.extractUsername(jwt);
+
+            String username =
+                    jwtService.extractUsername(jwt);
+
+            if (username != null
+                    && SecurityContextHolder
+                    .getContext()
+                    .getAuthentication() == null) {
+
+                UserDetails userDetails =
+                        userDetailsService
+                                .loadUserByUsername(username);
+
+                if (jwtService.isTokenValid(
+                        jwt,
+                        userDetails)) {
+
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+
+                    authentication.setDetails(
+                            new WebAuthenticationDetailsSource()
+                                    .buildDetails(request)
+                    );
+
+                    SecurityContextHolder
+                            .getContext()
+                            .setAuthentication(authentication);
+                } else {
+
+                    sendUnauthorizedResponse(
+                            response,
+                            "Invalid or expired token"
+                    );
+
+                    return;
+                }
+            }
+
         } catch (Exception exception) {
-            filterChain.doFilter(request, response);
+
+            logger.warn(
+                    "JWT authentication failed for request {} {}: {}",
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    exception.getMessage()
+            );
+
+            sendUnauthorizedResponse(
+                    response,
+                    "Invalid or expired token"
+            );
+
             return;
         }
 
-        if (username != null
-                && SecurityContextHolder.getContext()
-                .getAuthentication() == null) {
-
-            UserDetails userDetails =
-                    userDetailsService.loadUserByUsername(username);
-
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
-
-                authentication.setDetails(
-                        new WebAuthenticationDetailsSource()
-                                .buildDetails(request)
-                );
-
-                SecurityContextHolder.getContext()
-                        .setAuthentication(authentication);
-            }
-        }
-
         filterChain.doFilter(request, response);
+    }
+
+    private void sendUnauthorizedResponse(
+            HttpServletResponse response,
+            String message)
+            throws IOException {
+
+        response.setStatus(
+                HttpServletResponse.SC_UNAUTHORIZED
+        );
+
+        response.setContentType("application/json");
+
+        response.getWriter().write(
+                """
+                {
+                  "status": 401,
+                  "error": "Unauthorized",
+                  "message": "%s"
+                }
+                """.formatted(message)
+        );
     }
 }

@@ -19,7 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -103,6 +103,28 @@ class ReservationValidationTest {
                         request,
                         "user"
                 )
+        );
+    }
+    @Test
+    void updatedAtShouldBeSetWhenReservationIsUpdated() {
+
+        Reservation reservation = new Reservation();
+
+        reservation.setCreatedAt(LocalDateTime.now().minusMinutes(5));
+
+        reservation.setUpdatedAt(null);
+
+        LocalDateTime beforeUpdate = LocalDateTime.now();
+
+        reservation.onUpdate();
+
+        LocalDateTime afterUpdate = LocalDateTime.now();
+
+        assertNotNull(reservation.getUpdatedAt());
+
+        assertTrue(
+                !reservation.getUpdatedAt().isBefore(beforeUpdate)
+                        && !reservation.getUpdatedAt().isAfter(afterUpdate)
         );
     }
 }

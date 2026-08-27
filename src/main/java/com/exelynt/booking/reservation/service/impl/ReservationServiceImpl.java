@@ -15,6 +15,7 @@ import com.exelynt.booking.resource.repository.ResourceRepository;
 import com.exelynt.booking.user.entity.User;
 import com.exelynt.booking.user.exception.UserNotFoundException;
 import com.exelynt.booking.user.repository.UserRepository;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +26,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 @Service
 public class ReservationServiceImpl implements ReservationService {
@@ -49,36 +49,39 @@ public class ReservationServiceImpl implements ReservationService {
             ReservationRequestDTO request,
             String username) {
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() ->
-                        new UserNotFoundException("User not found"));
+        User user =
+                userRepository.findByUsername(username)
+                        .orElseThrow(() ->
+                                new UserNotFoundException(
+                                        "User not found"));
 
-        Resource resource = resourceRepository.findById(
-                        request.getResourceId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Resource not found with id: "
-                                        + request.getResourceId()));
+        Resource resource =
+                resourceRepository.findById(
+                                request.getResourceId())
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Resource not found with id: "
+                                                + request.getResourceId()));
 
         validateReservationTimes(
                 request.getStartTime(),
-                request.getEndTime()
-        );
+                request.getEndTime());
 
         if (!Boolean.TRUE.equals(resource.getAvailable())) {
+
             throw new BusinessException(
                     "Resource is not available");
         }
 
         Reservation reservation = new Reservation();
 
+        // User is taken from JWT username.
         reservation.setUser(user);
 
         reservation.setResource(resource);
         reservation.setStartTime(request.getStartTime());
         reservation.setEndTime(request.getEndTime());
         reservation.setPrice(request.getPrice());
-
         reservation.setStatus(ReservationStatus.PENDING);
 
         Reservation savedReservation =
@@ -100,48 +103,54 @@ public class ReservationServiceImpl implements ReservationService {
             String sortDirection) {
 
         validatePagination(page, size);
-
-        if (minPrice != null
-                && maxPrice != null
-                && minPrice.compareTo(maxPrice) > 0) {
-
-            throw new IllegalArgumentException(
-                    "Minimum price cannot be greater than maximum price");
-        }
-
-        Sort sort = createSort(sortBy, sortDirection);
+        validatePriceRange(minPrice, maxPrice);
 
         Pageable pageable =
-                PageRequest.of(page, size, sort);
+                PageRequest.of(
+                        page,
+                        size,
+                        createSort(sortBy, sortDirection)
+                );
+
+        Specification<Reservation> specification =
+                buildReservationSpecification(
+                        username,
+                        admin,
+                        status,
+                        minPrice,
+                        maxPrice
+                );
+
+        return reservationRepository
+                .findAll(specification, pageable)
+                .map(this::mapToResponse);
+    }
+
+    private Specification<Reservation> buildReservationSpecification(
+            String username,
+            boolean admin,
+            String status,
+            BigDecimal minPrice,
+            BigDecimal maxPrice) {
+
         Specification<Reservation> specification =
                 (root, query, criteriaBuilder) ->
                         criteriaBuilder.conjunction();
 
         if (!admin) {
+
             specification =
-                    ReservationSpecification.hasUsername(username);
+                    ReservationSpecification.hasUsername(
+                            username);
         }
 
         if (status != null && !status.isBlank()) {
 
-            ReservationStatus reservationStatus;
-
-            try {
-                reservationStatus =
-                        ReservationStatus.valueOf(
-                                status.toUpperCase());
-
-            } catch (IllegalArgumentException exception) {
-
-                throw new IllegalArgumentException(
-                        "Invalid reservation status: " + status);
-            }
+            ReservationStatus reservationStatus =
+                    parseReservationStatus(status);
 
             specification =
-                    specification == null
-                            ? ReservationSpecification.hasStatus(
-                            reservationStatus)
-                            : specification.and(
+                    specification.and(
                             ReservationSpecification.hasStatus(
                                     reservationStatus));
         }
@@ -149,10 +158,7 @@ public class ReservationServiceImpl implements ReservationService {
         if (minPrice != null) {
 
             specification =
-                    specification == null
-                            ? ReservationSpecification
-                            .priceGreaterThanOrEqualTo(minPrice)
-                            : specification.and(
+                    specification.and(
                             ReservationSpecification
                                     .priceGreaterThanOrEqualTo(
                                             minPrice));
@@ -161,18 +167,41 @@ public class ReservationServiceImpl implements ReservationService {
         if (maxPrice != null) {
 
             specification =
-                    specification == null
-                            ? ReservationSpecification
-                            .priceLessThanOrEqualTo(maxPrice)
-                            : specification.and(
+                    specification.and(
                             ReservationSpecification
                                     .priceLessThanOrEqualTo(
                                             maxPrice));
         }
 
-        return reservationRepository
-                .findAll(specification, pageable)
-                .map(this::mapToResponse);
+        return specification;
+    }
+
+    private ReservationStatus parseReservationStatus(
+            String status) {
+
+        try {
+
+            return ReservationStatus.valueOf(
+                    status.toUpperCase());
+
+        } catch (IllegalArgumentException exception) {
+
+            throw new IllegalArgumentException(
+                    "Invalid reservation status: " + status);
+        }
+    }
+
+    private void validatePriceRange(
+            BigDecimal minPrice,
+            BigDecimal maxPrice) {
+
+        if (minPrice != null
+                && maxPrice != null
+                && minPrice.compareTo(maxPrice) > 0) {
+
+            throw new IllegalArgumentException(
+                    "Minimum price cannot be greater than maximum price");
+        }
     }
 
     @Override
@@ -188,12 +217,10 @@ public class ReservationServiceImpl implements ReservationService {
                                         "Reservation not found with id: "
                                                 + id));
 
-
         validateOwnership(
                 reservation,
                 username,
-                admin
-        );
+                admin);
 
         return mapToResponse(reservation);
     }
@@ -212,14 +239,14 @@ public class ReservationServiceImpl implements ReservationService {
                                         "Reservation not found with id: "
                                                 + id));
 
-
         validateOwnership(
                 reservation,
                 username,
-                admin
-        );
+                admin);
 
-        if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+        if (reservation.getStatus()
+                == ReservationStatus.CANCELLED) {
+
             throw new BusinessException(
                     "Cancelled reservation cannot be updated");
         }
@@ -234,10 +261,11 @@ public class ReservationServiceImpl implements ReservationService {
 
         validateReservationTimes(
                 request.getStartTime(),
-                request.getEndTime()
-        );
+                request.getEndTime());
 
-        if (!Boolean.TRUE.equals(resource.getAvailable())) {
+        if (!Boolean.TRUE.equals(
+                resource.getAvailable())) {
+
             throw new BusinessException(
                     "Resource is not available");
         }
@@ -269,12 +297,10 @@ public class ReservationServiceImpl implements ReservationService {
         validateOwnership(
                 reservation,
                 username,
-                admin
-        );
+                admin);
 
         reservationRepository.delete(reservation);
     }
-
 
     private void validateOwnership(
             Reservation reservation,
@@ -351,6 +377,50 @@ public class ReservationServiceImpl implements ReservationService {
         return Sort.by(direction, sortBy);
     }
 
+    @Override
+    public ReservationResponseDTO updateReservationStatus(
+            Long id,
+            ReservationStatus status) {
+
+        Reservation reservation =
+                reservationRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ReservationNotFoundException(
+                                        "Reservation not found with id: "
+                                                + id));
+
+        ReservationStatus currentStatus =
+                reservation.getStatus();
+
+        if (currentStatus == ReservationStatus.CANCELLED) {
+
+            throw new BusinessException(
+                    "Cancelled reservation cannot change status");
+        }
+
+        if (currentStatus == ReservationStatus.CONFIRMED
+                && status != ReservationStatus.CANCELLED) {
+
+            throw new BusinessException(
+                    "Confirmed reservation can only be cancelled");
+        }
+
+        if (currentStatus == ReservationStatus.PENDING
+                && status != ReservationStatus.CONFIRMED
+                && status != ReservationStatus.CANCELLED) {
+
+            throw new BusinessException(
+                    "Pending reservation can only be confirmed or cancelled");
+        }
+
+        reservation.setStatus(status);
+
+        Reservation updatedReservation =
+                reservationRepository.save(reservation);
+
+        return mapToResponse(updatedReservation);
+    }
+
     private ReservationResponseDTO mapToResponse(
             Reservation reservation) {
 
@@ -391,25 +461,4 @@ public class ReservationServiceImpl implements ReservationService {
 
         return response;
     }
-
-    @Override
-    public ReservationResponseDTO updateReservationStatus(
-            Long id,
-            ReservationStatus status) {
-
-        Reservation reservation =
-                reservationRepository.findById(id)
-                        .orElseThrow(() ->
-                                new ReservationNotFoundException(
-                                        "Reservation not found with id: "
-                                                + id));
-
-        reservation.setStatus(status);
-
-        Reservation updatedReservation =
-                reservationRepository.save(reservation);
-
-        return mapToResponse(updatedReservation);
-    }
-
 }

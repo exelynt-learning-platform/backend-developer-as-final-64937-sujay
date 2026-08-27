@@ -749,6 +749,16 @@ The application uses:
 JWT tokens contain the authenticated username and are validated before
 protected endpoints are accessed.
 
+### Security Notes
+
+The application uses JWT Bearer token authentication with stateless sessions.
+
+CSRF protection is disabled because the API does not use server-side browser sessions or cookies for authentication. Clients authenticate requests by sending the JWT in the `Authorization: Bearer <token>` header.
+
+Spring Security is configured with `SessionCreationPolicy.STATELESS`, so the server does not maintain authentication sessions.
+
+State-changing endpoints require a valid JWT and appropriate role-based authorization.
+
 ------------------------------------------------------------------------
 
 # Database Model
